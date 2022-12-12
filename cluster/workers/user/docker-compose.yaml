@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  web:
+    image: ${IMAGE}
+    ports:
+      - "8000:8080"
+    networks:
+      - public_network
+      - user-internal
+    depends_on:
+      - db
+      - redis_cache
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public_network
+        - traefik.constraint-label=${STACK}
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+
+        - traefik.http.routers.${STACK}-http.rule=Host(`internal.oseas.link`) && PathPrefix(`/user`)
+        - traefik.http.routers.${STACK}-http.entrypoints=http
+        - traefik.http.routers.${STACK}-http.middlewares=https-redirect
+
+        - traefik.http.routers.${STACK}-https.rule=Host(`internal.oseas.link`) && PathPrefix(`/user`)
+        - traefik.http.routers.${STACK}-https.entrypoints=https
+        - traefik.http.routers.${STACK}-https.tls=true
+
+        - traefik.http.routers.${STACK}-https.service=user_service
+        - traefik.http.routers.${STACK}-https.tls.certresolver=le
+        - traefik.http.services.user_service.loadbalancer.server.port=8080
+      placement:
+        constraints:
+          - node.role == worker
+          - node.labels.${STACK}.traefik-proxy-certificates == true
+    env_file:
+      - .env
+  db:
+    image: postgres:13-alpine
+    ports:
+      - "5432:5432"
+    networks:
+      - user-internal
+    environment:
+      - POSTGRES_USER=test
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_DB=test
+  redis_cache:
+    image: redis:latest
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - "6379:6379"
+    networks:
+      - user-internal
+
+volumes:
+  postgres_data:
+
+networks:
+  user-internal:
+    driver: overlay
+  public_network:
+    driver: overlay

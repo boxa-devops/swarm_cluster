@@ -1,55 +1,56 @@
 version: '3.7'
 services:
   proxy:
-    image: ${IMAGE}
+    image: traefik:latest
     command:
-      - "--providers.docker"
-      - "--providers.docker.constraints=Label(`traefik.constraint-label`, `${STACK}`)"
+      - "--providers.docker=true"
+      - "--providers.docker.constraints=Label(`traefik.constraint-label`, `traefik-net`)"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.swarmmode"
+      - "--providers.docker.swarmmode=true"
       - "--entrypoints.http.address=:80"
       - "--entrypoints.https.address=:443"
-      - "--certificatesresolvers.le.acme.email=${EMAIL}"
+      - "--certificatesresolvers.le.acme.email=`boxa.developer@gmail.com`"
       - "--certificatesresolvers.le.acme.storage=/certificates/acme.json"
       - "--certificatesresolvers.le.acme.tlschallenge=true"
       - "--accesslog"
       - "--log"
-      - "--api"
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
+      - 80:80
+      - 443:443
+      - 9000:9000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - ${PUBLIC_NETWORK}
+      - traefik-net
     deploy:
+      restart_policy:
+        condition: on-failure
       labels:
         - traefik.enable=true
-        - traefik.docker.network=${PUBLIC_NETWORK}
-        - traefik.constraint-label=${STACK}
+        - traefik.docker.network=traefik-net
+        - traefik.constraint-label=traefik-net
         - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
         - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
 
-        - traefik.http.routers.${STACK}-http.rule=Host(`${DOMAIN}`)
-        - traefik.http.routers.${STACK}-http.entrypoints=http
-        - traefik.http.routers.${STACK}-http.middlewares=https-redirect
+        - traefik.http.routers.traefik-net-http.rule=Host(`internal.oseas.link`)
+        - traefik.http.routers.traefik-net-http.entrypoints=http
+        - traefik.http.routers.traefik-net-http.middlewares=https-redirect
 
-        - traefik.http.routers.${STACK}-https.rule=Host(`${DOMAIN}`)
-        - traefik.http.routers.${STACK}-https.entrypoints=https
-        - traefik.http.routers.${STACK}-https.tls=true
+        - traefik.http.routers.traefik-net-https.rule=Host(`internal.oseas.link`)
+        - traefik.http.routers.traefik-net-https.entrypoints=https
+        - traefik.http.routers.traefik-net-https.tls=true
 
-        - traefik.http.routers.${STACK}-https.service=api@internal
-        - traefik.http.routers.${STACK}-https.tls.certresolver=le
-        - traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=8080
+        - traefik.http.routers.traefik-net-https.service=api@internal
+        - traefik.http.routers.traefik-net-https.tls.certresolver=le
+        - traefik.http.services.traefik.loadbalancer.server.port=8081
       placement:
         constraints:
-          - node.role == ${ROLE}
-          - node.labels.${STACK}.traefik-proxy-certificates == true
-      mode: global
-volumes:
-  traefik-proxy-certificates:
+          - node.role == manager
+          - node.labels.traefik-net.traefik-net-certificates == true
+      mode: global    #deploy traefik to all the swarm nodes
+#volumes:
+#  traefik-proxy-certificates:
 
 networks:
-  ${PUBLIC_NETWORK}:
+  traefik-net:
     external: true
