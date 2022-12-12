@@ -1,0 +1,1 @@
+curl -fsSL get.docker.com -o get-docker.sh && CHANNEL=stable sh get-docker.sh && rm get-docker.sh

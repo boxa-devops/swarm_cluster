@@ -1,0 +1,6 @@
+frontend - https://oseas.link - 3.134.241.200 ubuntu@ec2-3-134-241-200.us-east-2.compute.amazonaws.com
+gateway - https://api.oseas.link - 3.131.156.158
+traefik -  https://traefik.oseas.link - 3.134.241.200
+services: - 18.224.206.69
+    x_service - http://internal.oseas.link/x_service
+    y_service - http://internal.oseas.link/y_service
